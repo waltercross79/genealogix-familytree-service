@@ -23,11 +23,11 @@ class MarriageListResource(Resource):
         marriage_dict = request.get_json()
         if not marriage_dict:
             response = {"message": "No input data provided"}
-            return response, status.HTTP_400_BAD_REQUEST
+            return response, HTTP_400_BAD_REQUEST
         
         errors = marriage_schema.validate(marriage_dict)
         if errors:
-            return errors, status.HTTP_400_BAD_REQUEST
+            return errors, HTTP_400_BAD_REQUEST
         
         try:            
             bride = Person.query.get_or_404(marriage_dict['bride_id'])
@@ -44,8 +44,8 @@ class MarriageListResource(Resource):
             query = Marriage.query.get(marriage.id)
 
             result = marriage_schema.dump(query).data
-            return result, status.HTTP_201_CREATED
+            return result, HTTP_201_CREATED
         except SQLAlchemyError as e:
             db.session.rollback()
             message = json.dumps({"error": str(e)})
-            return Response(message, status=status.HTTP_400_BAD_REQUEST, mimetype='application/json')
+            return Response(message, status=HTTP_400_BAD_REQUEST, mimetype='application/json')

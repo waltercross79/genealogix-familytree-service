@@ -4,6 +4,7 @@ from ..models import db, Person, PersonSchema, Marriage, MarriageSchema
 from sqlalchemy.exc import SQLAlchemyError
 from .status import *
 from ..helpers import PaginationHelper
+from dateutil import parser
 
 person_schema = PersonSchema()
 
@@ -15,15 +16,22 @@ class PersonResource(Resource):
 
     def patch(self, id):
         person = Person.query.get_or_404(id)
-        person_dict = request.get_json(force=True)
+        person_dict = request.get_json()
+            
         if 'firstName' in person_dict:
             person.firstName = person_dict['firstName']
         if 'lastName' in person_dict:
             person.lastName = person_dict['lastName']
         if 'dateOfBirth' in person_dict:
-            person.dateOfBirth = person_dict['dateOfBirth']
+            if person_dict['dateOfBirth'] != None:
+                person.dateOfBirth = parser.parse(person_dict['dateOfBirth'])
+            else:
+                person.dateOfBirth = None
         if 'dateOfDeath' in person_dict:
-            person.dateOfDeath = person_dict['dateOfDeath']
+            if person_dict['dateOfDeath'] != None:
+                person.dateOfDeath = parser.parse(person_dict['dateOfDeath'])
+            else:
+                person.dateOfDeath = None
         if 'gender' in person_dict:
             person.gender = person_dict['gender']
         if 'parents' in person_dict:
@@ -38,11 +46,11 @@ class PersonResource(Resource):
         
         dumped_person, dump_errors = person_schema.dump(person)
         if dump_errors:
-            return dump_errors, status.HTTP_400_BAD_REQUEST
+            return dump_errors, HTTP_400_BAD_REQUEST
         
         validate_errors = person_schema.validate(dumped_person)
         if validate_errors:
-            return validate_errors, status.HTTP_400_BAD_REQUEST
+            return validate_errors, HTTP_400_BAD_REQUEST
 
         try:
             person.update()
@@ -50,18 +58,18 @@ class PersonResource(Resource):
         except SQLAlchemyError as e:
             db.session.rollback()
             resp = jsonify({"error": str(e)})
-            return resp, status.HTTP_400_BAD_REQUEST
+            return resp, HTTP_400_BAD_REQUEST
 
     def delete(self, id):
         person = Person.query.get_or_404(id)
         try:
             person.delete(person)
             response = make_response()
-            return response, status.HTTP_204_NO_CONTENT
+            return response, HTTP_204_NO_CONTENT
         except SQLAlchemyError as e:
             db.session.rollback()
             resp = jsonify({"error": str(e)})
-            return resp, status.HTTP_401_UNAUTHORIZED
+            return resp, HTTP_401_UNAUTHORIZED
 
 class PersonListResource(Resource):
     def get(self):
@@ -79,28 +87,38 @@ class PersonListResource(Resource):
         person_dict = request.get_json()
         if not person_dict:
             response = {"message": "No input data provided"}
-            return response, status.HTTP_400_BAD_REQUEST
+            return response, HTTP_400_BAD_REQUEST
         
         errors = person_schema.validate(person_dict)
         if errors:
-            return errors, status.HTTP_400_BAD_REQUEST
+            return errors, HTTP_400_BAD_REQUEST
         
-        try:            
+        try:    
+            dob = None    
+            if 'dateOfBirth' in person_dict: 
+                if person_dict['dateOfBirth'] != None:
+                    dob = parser.parse(person_dict['dateOfBirth'])
+            
+            dod = None
+            if 'dateOfDeath' in person_dict:
+                if person_dict['dateOfDeath'] != None:
+                    dob = parser.parse(person_dict['dateOfDeath'])
+
             person = Person(
                 firstName=person_dict['firstName'],
                 lastName=person_dict['lastName'],
-                dateOfBirth=person_dict['dateOfBirth'], 
-                dateOfDeath=None,               
+                dateOfBirth=dob, 
+                dateOfDeath=dod,               
                 gender=person_dict['gender']
             )
-            if 'dateOfDeath' in person_dict:
-                person.dateOfDeath=person_dict['dateOfDeath']
+            #if 'dateOfDeath' in person_dict:
+            #    person.dateOfDeath=person_dict['dateOfDeath']
             
             person.add(person)
             query = Person.query.get(person.id)
             result = person_schema.dump(query).data
-            return result, status.HTTP_201_CREATED
+            return result, HTTP_201_CREATED
         except SQLAlchemyError as e:
             db.session.rollback()
             message = json.dumps({"error": str(e)})
-            return Response(message, status=status.HTTP_400_BAD_REQUEST, mimetype='application/json')
+            return Response(message, status=HTTP_400_BAD_REQUEST, mimetype='application/json')
