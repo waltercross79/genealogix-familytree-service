@@ -36,14 +36,18 @@ class PersonResource(Resource):
             person.gender = person_dict['gender']
         if 'parents' in person_dict:
             if person_dict['parents'] != None:
-                # delete existing parents
-                for p in person.parents:
-                    person.parents.remove(p)
-                # add parents from incoming list
-                for p in person_dict['parents']:                    
-                    parent = Person.query.filter_by(id=p['id']).first()
-                    person.parents.append(parent)       
-        
+                # get list of parent IDs greater than 0
+                id_list = [p['id'] for p in person_dict['parents'] if p['id'] > 0]
+
+                if len(id_list) > 0:
+                    # delete existing parents
+                    for p in person.parents:
+                        person.parents.remove(p)
+                    # add parents from incoming list
+                    for i in id_list:  
+                        parent = Person.query.filter_by(id=i).first()
+                        person.parents.append(parent)       
+            
         dumped_person, dump_errors = person_schema.dump(person)
         if dump_errors:
             return dump_errors, HTTP_400_BAD_REQUEST
